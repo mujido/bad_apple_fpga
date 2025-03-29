@@ -1,6 +1,8 @@
 module sd_test #(
     parameter LOWFREQ_POWER2 = 2,
-    parameter TIMEOUT_DELAY = $floor(0.01 * 27_000_000)
+    parameter TIMEOUT_DELAY = $floor(0.01 * 27_000_000),
+    parameter HIGHFREQ_POWER2 = 0
+
 ) (
     input wire clk,
     input wire rst,
@@ -16,15 +18,9 @@ module sd_test #(
     output wire sdclk,
     output reg sd_chip_select,
     output reg timeout,
-    output reg busy,
-    output reg command_sent,
-    output wire [5:0] LED,
-
-    // Debugging signals
-    output wire [3:0] state_out
+    output wire busy,
+    output reg command_sent
 );
-
-    assign state_out = state;
 
     localparam ST_RESET = 4'h0;
     localparam ST_INIT_SPI = 4'h1;
@@ -47,9 +43,6 @@ module sd_test #(
         .clk_out_falling(lowfreq_falling)
     );
 
-    localparam SPI_HIGHFREQ = 12_000_000;
-    localparam SPI_HIGHFREQ_COUNT = $ceil(1.0 * 27_000_000 / SPI_HIGHFREQ);
-
     reg [3:0] state = ST_RESET;
     reg [31:0] counter = 0;
     reg [46:0] send_data = 0;
@@ -64,9 +57,7 @@ module sd_test #(
             mosi <= 1'b1;
             response <= 0;
             response_ready <= 0;
-            busy <= 0;
             command_sent <= 0;
-            // LED <= 0;
         end else if (lowfreq_rising) begin
             case (state)
                 ST_RESET : begin
@@ -75,6 +66,9 @@ module sd_test #(
                     mosi <= 1'b1;
                     sd_chip_select <= 1'b1;
                     timeout <= 1'b0;
+                    command_sent <= 0;
+                    response <= 0;
+                    response_ready <= 0;
                 end
 
                 ST_INIT_SPI : begin
@@ -96,6 +90,7 @@ module sd_test #(
                     if (counter == 1) begin
                         state <= ST_RECV_WAIT;
                         counter <= TIMEOUT_DELAY;
+                        command_sent <= 1'b1;
                     end
                 end
 
@@ -125,13 +120,16 @@ module sd_test #(
                 ST_RECV : begin
                     response = { response[38:0], miso };
                     counter <= counter - 1'b1;
-                    if (counter == 1)
+                    if (counter == 1) begin
                         state <= ST_IDLE;
+                        response_ready <= 1'b1;
+                    end
                 end
             endcase
         end
     end
 
     assign sdclk = (state == ST_IDLE) | lowfreq_clk;
+    assign busy = state != ST_IDLE;
 
 endmodule

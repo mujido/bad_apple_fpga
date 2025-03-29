@@ -1,0 +1,25 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Sat Mar 29 20:17:47 2025
+[*]
+[dumpfile] "/home/kurt/Documents/FPGA/GOWIN/bad_apple/tests/clock_divider_pow2_tb.vcd"
+[dumpfile_mtime] "Sat Mar 29 20:16:43 2025"
+[dumpfile_size] 735
+[savefile] "/home/kurt/Documents/FPGA/GOWIN/bad_apple/tests/clock_divider_pow2_tb.gtkw"
+[timestart] 0
+[size] 2560 1361
+[pos] -2611 -19
+*-4.759464 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] clock_divider_pow2_tb.
+[sst_width] 304
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 420
+@28
+clock_divider_pow2_tb.clk
+clock_divider_pow2_tb.clk_out
+clock_divider_pow2_tb.clk_out_falling
+@29
+clock_divider_pow2_tb.clk_out_rising
+[pattern_trace] 1
+[pattern_trace] 0

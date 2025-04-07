@@ -9,6 +9,8 @@
         <File path="src/clock_divider_arb.v.v" type="file.verilog" enable="1"/>
         <File path="src/clock_divider_pow2.v" type="file.verilog" enable="1"/>
         <File path="src/sd_card.v" type="file.verilog" enable="1"/>
+        <File path="src/sd_test.v" type="file.verilog" enable="1"/>
+        <File path="src/sd_test_top.v" type="file.verilog" enable="1"/>
         <File path="src/bad_apple.cst" type="file.cst" enable="1"/>
         <File path="src/bad_apple.sdc" type="file.sdc" enable="1"/>
     </FileList>

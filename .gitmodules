@@ -1,0 +1,3 @@
+[submodule "thirdparty/SD-card-controller"]
+	path = thirdparty/SD-card-controller
+	url = git@github.com:mujido/SD-card-controller.git

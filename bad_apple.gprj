@@ -5,13 +5,37 @@
     <Version>5</Version>
     <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
     <FileList>
-        <File path="src/TOP.v" type="file.verilog" enable="1"/>
+        <File path="src/bad_apple_top.v" type="file.verilog" enable="1"/>
         <File path="src/clock_divider_arb.v.v" type="file.verilog" enable="1"/>
         <File path="src/clock_divider_pow2.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_rpll/gowin_rpll.v" type="file.verilog" enable="1"/>
+        <File path="src/sd_bus_master.v" type="file.verilog" enable="1"/>
         <File path="src/sd_card.v" type="file.verilog" enable="1"/>
         <File path="src/sd_test.v" type="file.verilog" enable="1"/>
         <File path="src/sd_test_top.v" type="file.verilog" enable="1"/>
+        <File path="src/spi_rx.v" type="file.verilog" enable="1"/>
+        <File path="src/spi_tx.v" type="file.verilog" enable="1"/>
+        <File path="src/test.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/bistable_domain_cross.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/byte_en_reg.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/generic_dpram.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/generic_fifo_dc_gray.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/monostable_domain_cross.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_clock_divider.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_cmd_master.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_cmd_serial_host.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_controller_wb.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_crc_16.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_crc_7.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_data_master.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_data_serial_host.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_data_xfer_trig.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_edge_detect.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_fifo_filler.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_wb_sel_ctrl.v" type="file.verilog" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sdc_controller.v" type="file.verilog" enable="1"/>
         <File path="src/bad_apple.cst" type="file.cst" enable="1"/>
         <File path="src/bad_apple.sdc" type="file.sdc" enable="1"/>
+        <File path="thirdparty/SD-card-controller/rtl/verilog/sd_defines.h" type="file.other" enable="1"/>
     </FileList>
 </Project>

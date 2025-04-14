@@ -5,10 +5,10 @@ module sd_bus_master #(
     input wire clk,
     input wire reset,
 
-    inout wire [3:0] sdio_data_pads,
-    inout wire sdio_cmd_pad,
-    output wire sdio_clk_pad,
-    output wire [5:0] led_pads
+    inout wire [3:0] sdio_data,
+    inout wire sdio_cmd,
+    output wire sdio_clk,
+    output wire [5:0] leds
 );
 
     // Wishbone bus registers
@@ -45,8 +45,8 @@ module sd_bus_master #(
         // .m_wb_ack_i(wbm_sdm_ack_i),
         // .m_wb_cti_o(wbm_sdm_cti_o),
         // .m_wb_bte_o(wbm_sdm_bte_o),
-        // .sd_cmd_dat_i(sd_cmd),
-        // .sd_cmd_out_o(cmdIn),
+        sd_cmd_dat_i(sd_cmd),
+        .sd_cmd_out_o(cmdIn),
         // .sd_cmd_oe_o(sd_cmd_oe),
         // .sd_dat_dat_i(sd_dat),
         // .sd_dat_out_o(datIn),
@@ -63,7 +63,7 @@ module sd_bus_master #(
         if (reset) begin
             reset_counter <= 2'd0;
             wb_rst = 1'b1;
-        end else if (reset_counter != &reset_counter) begin
+        end else if (~&reset_counter) begin
             reset_counter <= reset_counter + 1'b1;
         end else begin
             wb_rst = 1'b0;
@@ -182,15 +182,53 @@ module sd_bus_master #(
                     end
 
                     SDC_ADDR_CLOCK_DIVIDER : begin
+                        // disable command interrupts
+                        sdc_adr_o <= SDC_ADDR_CMD_EVENT_ENABLE;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_CMD_EVENT_ENABLE : begin
+                        // disable data interrupts
+                        sdc_adr_o <= SDC_ADDR_DATA_EVENT_ENABLE;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_DATA_EVENT_ENABLE : begin
+                        // clear command interrupt flags
+                        sdc_adr_o <= SDC_ADDR_CMD_EVENT_STATUS;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_CMD_EVENT_STATUS : begin
+                        // clear data interrupt flags
+                        sdc_adr_o <= SDC_ADDR_DATA_EVENT_STATUS;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_DATA_EVENT_STATUS : begin
+                        sdc_adr_o <= SDC_ADDR_BLOCK_SIZE;
+                        sdc_dat_o <= 511;
+                    end
+
+                    SDC_ADDR_BLOCK_SIZE : begin
+                        sdc_adr_o <= SDC_ADDR_BLOCK_COUNT;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_BLOCK_COUNT : begin
+                        sdc_adr_o <= SDC_ADDR_DATA_XFER_ADDRESS;
+                        sdc_dat_o <= 0;
+                    end
+
+                    SDC_ADDR_DATA_XFER_ADDRESS : begin
                         top_state <= TOP_STATE_VERIFY;
-                        sdc_adr_o <= 0;
                         sdc_we_o <= 1'b0;
                     end
                 endcase
             end
         end else if (top_state == TOP_STATE_VERIFY) begin
             if (sdc_ack_i) begin
-                if (sdc_adr_o <= SDC_ADDR_CLOCK_DIVIDER) begin
+                if (sdc_adr_o <= SDC_ADDR_DATA_XFER_ADDRESS) begin
                     sdc_adr_o <= sdc_adr_o != SDC_ADDR_BLOCK_COUNT ? sdc_adr_o + 4 : SDC_ADDR_DATA_XFER_ADDRESS;
                 end else begin
                     sdc_bus_idle();
@@ -198,36 +236,9 @@ module sd_bus_master #(
                 end
             end
         end
-            // case (sdc_adr_o)
-            //     SDC_ADDR_DATA_TIMEOUT : begin
-            //         if (top_state == TOP_STATE_INIT) begin
-            //             if (!sdc_stb_o) begin
-            //                 sdc_dat_o[23:0] <= SDC_CONFIG_TIMEOUT;
-            //             end else if (sdc_ack_i) begin
-            //                 top_state <= TOP_STATE_VERIFY;
-            //                 sdc_we_o <= 1'b0;
-            //             end
-            //         end else begin
-            //             if (sdc_ack_i) begin
-            //                 sdc_bus_idle();
-            //                 led_regs <= sdc_dat_i;
-            //                 top_state <= TOP_STATE_END;
-            //             end
-            //         end
-            //     end
-
-            //     default : begin
-            //         top_state = TOP_STATE_END;
-            //         sdc_bus_idle();
-            //     end
-            //     endcase
-            // end
     end
 
     // assign led_pads = ~led_regs;
-    assign led_pads = sdc_dat_i;
-    assign sdio_clk_pad = 1'b1;
-    assign sdio_data_pads = 4'bzzzz;
-    assign sdio_cmd_pad = 1'bz;
+    assign leds = sdc_dat_i;
 
 endmodule

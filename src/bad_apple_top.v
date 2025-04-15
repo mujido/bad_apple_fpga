@@ -11,8 +11,8 @@ module bad_apple_top(
 
     localparam SYS_CLK_FREQ = 100_000_000;
     localparam SDIO_BASE_FREQ = 50_000_000;
-    localparam SDIO_HIGHFREQ_DIVIDER = (SDIO_BASE_FREQ / (2 * 25_000_000)) - 1;
-    localparam SDIO_LOWFREQ_DIVIDER = (SDIO_BASE_FREQ / (2 * 400_000)) - 1;
+    localparam SDIO_HIGHFREQ_DIVIDER = 0;   // 25 MHz (SDIO_BASE_FREQ / (0 + 1))
+    localparam SDIO_LOWFREQ_DIVIDER = 62;   // 396kHz (SDIO_BASE_FREQ / (62 + 1))
 
     wire clk_100;
     wire clk_50;

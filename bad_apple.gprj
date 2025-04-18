@@ -10,12 +10,6 @@
         <File path="src/clock_divider_pow2.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_rpll/gowin_rpll.v" type="file.verilog" enable="1"/>
         <File path="src/sd_bus_master.v" type="file.verilog" enable="1"/>
-        <File path="src/sd_card.v" type="file.verilog" enable="1"/>
-        <File path="src/sd_test.v" type="file.verilog" enable="1"/>
-        <File path="src/sd_test_top.v" type="file.verilog" enable="1"/>
-        <File path="src/spi_rx.v" type="file.verilog" enable="1"/>
-        <File path="src/spi_tx.v" type="file.verilog" enable="1"/>
-        <File path="src/test.v" type="file.verilog" enable="1"/>
         <File path="thirdparty/SD-card-controller/rtl/verilog/bistable_domain_cross.v" type="file.verilog" enable="1"/>
         <File path="thirdparty/SD-card-controller/rtl/verilog/byte_en_reg.v" type="file.verilog" enable="1"/>
         <File path="thirdparty/SD-card-controller/rtl/verilog/generic_dpram.v" type="file.verilog" enable="1"/>

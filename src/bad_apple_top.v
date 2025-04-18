@@ -10,16 +10,13 @@ module bad_apple_top(
 );
 
     localparam SYS_CLK_FREQ = 100_000_000;
-    localparam SDIO_BASE_FREQ = 50_000_000;
-    localparam SDIO_HIGHFREQ_DIVIDER = 0;   // 25 MHz (SDIO_BASE_FREQ / (0 + 1))
-    localparam SDIO_LOWFREQ_DIVIDER = 62;   // 396kHz (SDIO_BASE_FREQ / (62 + 1))
+    localparam SDIO_HIGHFREQ_DIVIDER = 1;   // 25 MHz (SYS_CLK_FREQ / (2 * (1 + 1))
+    localparam SDIO_LOWFREQ_DIVIDER = 124;  // 400 kHz (SYS_CLK_FREQ / (2 * (124 + 1))
 
     wire clk_100;
-    wire clk_50;
 
     Gowin_rPLL pll0(
         .clkout(clk_100),
-        .clkoutd(clk_50),
         .clkin(clock_27_pad));
 
     sd_bus_master #(
@@ -27,7 +24,7 @@ module bad_apple_top(
         .HIGHFREQ_CLK_DIVIDER(SDIO_HIGHFREQ_DIVIDER)
     ) sd_master (
         .clk(clk_100),
-        .sdio_base_clk(clk_50),
+        .sdio_base_clk(clk_100),
         .reset(reset_pad),
         .leds(led_pads),
         .sdio_clk(sdio_clk_pad),

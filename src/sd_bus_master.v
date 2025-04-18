@@ -29,6 +29,8 @@ module sd_bus_master #(
     wire sdc_cmd_out;
     wire [3:0] sdc_data_out;
 
+    wire [31:0] sdc_dataout_wb_dat_i;
+
     assign sdio_cmd = sdc_cmd_oe ? sdc_cmd_out : 1'bz;
     assign sdio_data = sdc_data_oe ? sdc_data_out : 4'bzzzz;
 
@@ -46,8 +48,8 @@ module sd_bus_master #(
         // .m_wb_adr_o(wbm_sdm_adr_o),
         // .m_wb_sel_o(wbm_sdm_sel_o),
         // .m_wb_we_o(wbm_sdm_we_o),
-        // .m_wb_dat_o(wbm_sdm_dat_o),
-        // .m_wb_dat_i(wbm_sdm_dat_i),
+        .m_wb_dat_o(sdc_dataout_wb_dat_i),
+        // .m_wb_dat_i(sdc_dataout_wb_dat_o),
         // .m_wb_cyc_o(wbm_sdm_cyc_o),
         // .m_wb_stb_o(wbm_sdm_stb_o),
         // .m_wb_ack_i(wbm_sdm_ack_i),
@@ -65,7 +67,7 @@ module sd_bus_master #(
         // .int_data (int_data)
     );
 
-    reg [4:0] reset_counter = 0;
+    reg [1:0] reset_counter = 0;
 
     always @(posedge wb_clk or posedge reset) begin
         if (reset) begin
@@ -214,6 +216,7 @@ module sd_bus_master #(
     end
 
     // assign led_pads = ~led_regs;
-    assign leds = sdc_wb_dat_i[5:0];
+    // assign leds = sdc_wb_dat_i[5:0];
+    assign leds = sdc_dataout_wb_dat_i[5:0];
 
 endmodule

@@ -103,12 +103,12 @@ module sd_bus_master #(
 
     localparam SDC_CONFIG_TIMEOUT = 24'h7FFF;
 
-    localparam TOP_STATE_INIT = 4'd0;
-    localparam TOP_STATE_VERIFY = 4'd1;
-    localparam TOP_STATE_INIT_FAILED = 4'd14;
-    localparam TOP_STATE_END = 4'd15;
+    localparam SD_BUS_STATE_INIT = 4'd0;
+    localparam SD_BUS_STATE_VERIFY = 4'd1;
+    localparam SD_BUS_STATE_INIT_FAILED = 4'd14;
+    localparam SD_BUS_STATE_END = 4'd15;
 
-    reg [3:0] top_state = 0;
+    reg [3:0] sd_bus_state = 0;
     reg [5:0] led_regs;
 
     task sdc_bus_idle();
@@ -121,7 +121,7 @@ module sd_bus_master #(
 
     always @(posedge wb_clk) begin
         if (wb_rst) begin
-            top_state <= TOP_STATE_INIT;
+            sd_bus_state <= SD_BUS_STATE_INIT;
             sdc_wb_dat_o <= 0;
             sdc_wb_we_o <= 1'b0;
             sdc_wb_sel_o <= 4'b0000;
@@ -129,7 +129,7 @@ module sd_bus_master #(
             sdc_wb_stb_o <= 1'b0;
             sdc_wb_adr_o <= 0;
             led_regs <= 6'd0;
-        end else if (top_state == TOP_STATE_INIT) begin
+        end else if (sd_bus_state == SD_BUS_STATE_INIT) begin
             if (!sdc_wb_stb_o) begin
                 // Begin write cycle
                 sdc_wb_we_o <= 1'b1;
@@ -198,18 +198,18 @@ module sd_bus_master #(
                     end
 
                     SDC_ADDR_DATA_XFER_ADDRESS : begin
-                        top_state <= TOP_STATE_VERIFY;
+                        sd_bus_state <= SD_BUS_STATE_VERIFY;
                         sdc_wb_we_o <= 1'b0;
                     end
                 endcase
             end
-        end else if (top_state == TOP_STATE_VERIFY) begin
+        end else if (sd_bus_state == SD_BUS_STATE_VERIFY) begin
             if (sdc_wb_ack_i) begin
                 if (sdc_wb_adr_o <= SDC_ADDR_DATA_XFER_ADDRESS) begin
                     sdc_wb_adr_o <= sdc_wb_adr_o != SDC_ADDR_BLOCK_COUNT ? sdc_wb_adr_o + 3'd4 : SDC_ADDR_DATA_XFER_ADDRESS;
                 end else begin
                     sdc_bus_idle();
-                    top_state <= TOP_STATE_END;
+                    sd_bus_state <= SD_BUS_STATE_END;
                 end
             end
         end

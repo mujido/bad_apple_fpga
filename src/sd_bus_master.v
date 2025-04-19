@@ -103,9 +103,54 @@ module sd_bus_master #(
 
     localparam SDC_CONFIG_TIMEOUT = 24'h7FFF;
 
-    localparam SD_BUS_STATE_INIT = 4'd0;
+    localparam MMC_RSP_PRESENT  = 32'b00001;
+    localparam MMC_RSP_136      = 32'b00010;     // 136 bit response
+    localparam MMC_RSP_CRC      = 32'b00100;     // expect valid CRC
+    localparam MMC_RSP_BUSY     = 32'b01000;     // card may send busy signal
+    localparam MMC_RSP_OPCODE   = 32'b10000;     // response contains opcode
+
+    localparam MMC_RSP_NONE = 5'd0;
+    localparam MMC_RSP_R1   = MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE;
+    localparam MMC_RSP_R1b  = MMC_RSP_R1 | MMC_RSP_BUSY;
+    localparam MMC_RSP_R2   = MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE;
+    localparam MMC_RSP_R3   = MMC_RSP_PRESENT;
+    localparam MMC_RSP_R4   = MMC_RSP_PRESENT;
+    localparam MMC_RSP_R5   = MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE;
+    localparam MMC_RSP_R6   = MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE;
+    localparam MMC_RSP_R7   = MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE;
+
+    localparam MMC_CMD_GO_IDLE_STATE        = 6'd0;
+    localparam MMC_CMD_SEND_OP_COND         = 6'd1;
+    localparam MMC_CMD_ALL_SEND_CID         = 6'd2;
+    localparam MMC_CMD_SET_RELATIVE_ADDR    = 6'd3;
+    localparam MMC_CMD_SET_DSR              = 6'd4;
+    localparam MMC_CMD_SWITCH               = 6'd6;
+    localparam MMC_CMD_SELECT_CARD          = 6'd7;
+    localparam MMC_CMD_SEND_EXT_CSD         = 6'd8;
+    localparam MMC_CMD_SEND_CSD             = 6'd9;
+    localparam MMC_CMD_SEND_CID             = 6'd10;
+    localparam MMC_CMD_STOP_TRANSMISSION    = 6'd12;
+    localparam MMC_CMD_SEND_STATUS          = 6'd13;
+    localparam MMC_CMD_SET_BLOCKLEN         = 6'd16;
+    localparam MMC_CMD_READ_SINGLE_BLOCK    = 6'd17;
+    localparam MMC_CMD_READ_MULTIPLE_BLOCK  = 6'd18;
+    localparam MMC_CMD_WRITE_SINGLE_BLOCK   = 6'd24;
+    localparam MMC_CMD_WRITE_MULTIPLE_BLOCK = 6'd25;
+    localparam MMC_CMD_ERASE_GROUP_START    = 6'd35;
+    localparam MMC_CMD_ERASE_GROUP_END      = 6'd36;
+    localparam MMC_CMD_ERASE                = 6'd38;
+    localparam MMC_CMD_APP_CMD              = 6'd55;
+    localparam MMC_CMD_SPI_READ_OCR         = 6'd58;
+    localparam MMC_CMD_SPI_CRC_ON_OFF       = 6'd59;
+
+    localparam MMC_DATA_XFER_NONE  = 2'b00;
+    localparam MMC_DATA_XFER_READ  = 2'b01;
+    localparam MMC_DATA_XFER_WRITE = 2'b10;
+
+    localparam SD_BUS_STATE_INIT_SD_MODULE = 4'd0;
     localparam SD_BUS_STATE_VERIFY = 4'd1;
-    localparam SD_BUS_STATE_INIT_FAILED = 4'd14;
+    localparam SD_BUS_STATE_INIT_CARD = 4'd2;
+    localparam SD_BUS_STATE_INIT_SD_MODULE_FAILED = 4'd14;
     localparam SD_BUS_STATE_END = 4'd15;
 
     reg [3:0] sd_bus_state = 0;
@@ -119,9 +164,46 @@ module sd_bus_master #(
         end
     endtask
 
+    function automatic [31:0] sd_cmd(input [5:0] opcode, input [3:0] response_type, input [1:0] data_xfer_direction);
+        sd_cmd = {opcode, 1'b0, data_xfer_direction, response_type};
+    endfunction
+
+    function automatic [40:0] sdc_op(
+        input [7:0] sdc_addr,
+        input [31:0] reg_value,
+        input verify
+    );
+        sdc_op = {sdc_addr, reg_value, verify};
+    endfunction
+
+    localparam SDC_VERIFY_NO = 1'b0;
+    localparam SDC_VERIFY_YES = 1'b1;
+
+    localparam SD_INIT_OP_COUNT = 4'd11;
+    localparam SD_INIT_OP_COUNT_LOG2 = 4;
+    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index;
+    wire [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index = sd_init_ops_index + 1'b1;
+    // wire [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index =
+    //     sd_init_ops_index < SD_INIT_OP_COUNT - 1
+    //         ? sd_init_ops_index + (sdc_wb_ack_i ? 1'b1 : 1'b0)
+    //         : 0;
+
+    wire [40:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
+    assign sd_init_ops[0] = sdc_op(SDC_ADDR_DATA_TIMEOUT, SDC_CONFIG_TIMEOUT, SDC_VERIFY_YES);
+    assign sd_init_ops[1] = sdc_op(SDC_ADDR_CONTROL, 1'b1, SDC_VERIFY_YES);
+    assign sd_init_ops[2] = sdc_op(SDC_ADDR_CMD_TIMEOUT, SDC_CONFIG_TIMEOUT, SDC_VERIFY_YES);
+    assign sd_init_ops[3] = sdc_op(SDC_ADDR_CLOCK_DIVIDER, LOWFREQ_CLK_DIVIDER, SDC_VERIFY_YES);
+    assign sd_init_ops[4] = sdc_op(SDC_ADDR_CMD_EVENT_ENABLE, 0, SDC_VERIFY_YES);
+    assign sd_init_ops[5] = sdc_op(SDC_ADDR_CMD_EVENT_STATUS, 0, SDC_VERIFY_YES);
+    assign sd_init_ops[6] = sdc_op(SDC_ADDR_DATA_EVENT_ENABLE, 0, SDC_VERIFY_YES);
+    assign sd_init_ops[7] = sdc_op(SDC_ADDR_DATA_EVENT_STATUS, 0, SDC_VERIFY_YES);
+    assign sd_init_ops[8] = sdc_op(SDC_ADDR_BLOCK_SIZE, 511, SDC_VERIFY_YES);
+    assign sd_init_ops[9] = sdc_op(SDC_ADDR_BLOCK_COUNT, 0, SDC_VERIFY_YES);
+    assign sd_init_ops[10] = sdc_op(SDC_ADDR_DATA_XFER_ADDRESS, 0, SDC_VERIFY_YES);
+
     always @(posedge wb_clk) begin
         if (wb_rst) begin
-            sd_bus_state <= SD_BUS_STATE_INIT;
+            sd_bus_state <= SD_BUS_STATE_INIT_SD_MODULE;
             sdc_wb_dat_o <= 0;
             sdc_wb_we_o <= 1'b0;
             sdc_wb_sel_o <= 4'b0000;
@@ -129,90 +211,63 @@ module sd_bus_master #(
             sdc_wb_stb_o <= 1'b0;
             sdc_wb_adr_o <= 0;
             led_regs <= 6'd0;
-        end else if (sd_bus_state == SD_BUS_STATE_INIT) begin
-            if (!sdc_wb_stb_o) begin
-                // Begin write cycle
-                sdc_wb_we_o <= 1'b1;
-                sdc_wb_sel_o <= 4'b0111;
-                sdc_wb_cyc_o <= 1'b1;
-                sdc_wb_stb_o <= 1'b1;
-                sdc_wb_adr_o <= SDC_ADDR_DATA_TIMEOUT;
-                sdc_wb_dat_o <= SDC_CONFIG_TIMEOUT;
+            sd_init_ops_index <= 'd0;
+        end else if (sd_bus_state == SD_BUS_STATE_INIT_SD_MODULE) begin
+            sdc_wb_we_o <= 1'b1;
+            sdc_wb_sel_o <= 4'b1111;
+            sdc_wb_cyc_o <= 1'b1;
+            sdc_wb_stb_o <= 1'b1;
+            sdc_wb_adr_o <= sd_init_ops[sd_init_ops_next_index][40:33];
+            sdc_wb_dat_o <= sd_init_ops[sd_init_ops_next_index][32:1];
+
+            if (sd_init_ops_next_index < SD_INIT_OP_COUNT) begin
+                sd_init_ops_index <= sd_init_ops_next_index;
+            end else begin
+                sdc_wb_adr_o <= sd_init_ops[0][40:33];
+                sdc_wb_dat_o <= 0;
+                sdc_wb_we_o <= 1'b0;
+                sd_bus_state <= SD_BUS_STATE_VERIFY;
             end
 
-            if (sdc_wb_ack_i) begin
-                // Previous write complete. Move to next.
-                case (sdc_wb_adr_o)
-                    SDC_ADDR_DATA_TIMEOUT : begin
-                        sdc_wb_adr_o <= SDC_ADDR_CONTROL;
-                        sdc_wb_dat_o <= 1'b1;
-                    end
-
-                    SDC_ADDR_CONTROL : begin
-                        sdc_wb_adr_o <= SDC_ADDR_CMD_TIMEOUT;
-                        sdc_wb_dat_o <= SDC_CONFIG_TIMEOUT;
-                    end
-
-                    SDC_ADDR_CMD_TIMEOUT : begin
-                        sdc_wb_adr_o <= SDC_ADDR_CLOCK_DIVIDER;
-                        sdc_wb_dat_o <= LOWFREQ_CLK_DIVIDER;
-                    end
-
-                    SDC_ADDR_CLOCK_DIVIDER : begin
-                        // disable command interrupts
-                        sdc_wb_adr_o <= SDC_ADDR_CMD_EVENT_ENABLE;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_CMD_EVENT_ENABLE : begin
-                        // disable data interrupts
-                        sdc_wb_adr_o <= SDC_ADDR_DATA_EVENT_ENABLE;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_DATA_EVENT_ENABLE : begin
-                        // clear command interrupt flags
-                        sdc_wb_adr_o <= SDC_ADDR_CMD_EVENT_STATUS;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_CMD_EVENT_STATUS : begin
-                        // clear data interrupt flags
-                        sdc_wb_adr_o <= SDC_ADDR_DATA_EVENT_STATUS;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_DATA_EVENT_STATUS : begin
-                        sdc_wb_adr_o <= SDC_ADDR_BLOCK_SIZE;
-                        sdc_wb_dat_o <= 511;
-                    end
-
-                    SDC_ADDR_BLOCK_SIZE : begin
-                        sdc_wb_adr_o <= SDC_ADDR_BLOCK_COUNT;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_BLOCK_COUNT : begin
-                        sdc_wb_adr_o <= SDC_ADDR_DATA_XFER_ADDRESS;
-                        sdc_wb_dat_o <= 0;
-                    end
-
-                    SDC_ADDR_DATA_XFER_ADDRESS : begin
-                        sd_bus_state <= SD_BUS_STATE_VERIFY;
-                        sdc_wb_we_o <= 1'b0;
-                        sdc_wb_adr_o <= SDC_ADDR_DATA_TIMEOUT;
-                    end
-                endcase
-            end
         end else if (sd_bus_state == SD_BUS_STATE_VERIFY) begin
             if (sdc_wb_ack_i) begin
-                if (sdc_wb_adr_o <= SDC_ADDR_DATA_XFER_ADDRESS) begin
+                if (sdc_wb_adr_o < SDC_ADDR_DATA_XFER_ADDRESS) begin
                     sdc_wb_adr_o <= sdc_wb_adr_o != SDC_ADDR_BLOCK_COUNT ? sdc_wb_adr_o + 3'd4 : SDC_ADDR_DATA_XFER_ADDRESS;
                 end else begin
                     sdc_bus_idle();
                     sd_bus_state <= SD_BUS_STATE_END;
+                    // sdc_wb_adr_o <= sd_cmd(MMC_CMD_GO_IDLE_STATE, MMC_RSP_NONE, MMC_DATA_XFER_NONE);
                 end
             end
+        // end else if (sd_bus_state == SD_BUS_STATE_INIT_CARD) begin
+        //             sdc_wb_we_o <= 1'b1;
+        //             sdc_wb_adr_o <= SDC_ADDR_COMMAND;
+        //             sdc_wb_dat_o <=
+
+        //     if (sdc_wb_ack_i) begin
+        //         if (sdc_wb_adr_o == SDC_ADDR_COMMAND) begin
+        //             sdc_wb_adr_o <= SDC_ADDR_ARGUMENT;
+        //             sdc_wb_dat_o <= 0;
+        //         end else begin
+        //             sd_bus_state <= SDC_BUS_STATE_CMD_OP_COND;
+        //             sdc_wb_adr_o <= 0;
+        //         end
+        //     end
+        // end else if (sd_bus_state == SD_BUS_STATE_CMD_OP_COND) begin
+        //     if (!sdc_wb_ack_i) begin
+        //         case ((sdc_wb_adr_o))
+        //     sdc_wb_dat_o <= sd_cmd(MMC_CMD_SEND_OP_COND, MMC_RSP_R3, MMC_DATA_XFER_NONE);
+        //     if (sdc_wb_ack_i) begin
+        //         if (sdc_wb_adr_o == SDC_ADDR_COMMAND) begin
+        //             sdc_wb_adr_o <= SDC_ADDR_ARGUMENT;
+        //             sdc_wb_dat_o <= 0;
+        //         end else begin
+        //             sd_bus_state <= SDC_BUS_STATE_CMD_OP_COND;
+        //             sdc_wb_adr_o <= SDC_ADDR_COMMAND;
+        //             sdc_wb_dat_o <= sd_cmd(MMC_CMD_SEND_OP_COND, MMC_RSP_R3, MMC_DATA_XFER_NONE);
+        //         end
+        //     end
+        // end
         end
     end
 

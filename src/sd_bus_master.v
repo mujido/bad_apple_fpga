@@ -200,6 +200,7 @@ module sd_bus_master #(
                     SDC_ADDR_DATA_XFER_ADDRESS : begin
                         sd_bus_state <= SD_BUS_STATE_VERIFY;
                         sdc_wb_we_o <= 1'b0;
+                        sdc_wb_adr_o <= SDC_ADDR_DATA_TIMEOUT;
                     end
                 endcase
             end

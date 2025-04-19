@@ -14,9 +14,9 @@ module sd_bus_master_tb;
     sd_bus_master sd_master(
         .clk(clk),
         .reset(reset),
-        .sdio_clk_pad(sdio_clk_pad),
-        .sdio_cmd_pad(sdio_cmd_pad),
-        .sdio_data_pads(sdio_data_pads)
+        .sdio_clk(sdio_clk_pad),
+        .sdio_cmd(sdio_cmd_pad),
+        .sdio_data(sdio_data_pads)
     );
 
     initial begin

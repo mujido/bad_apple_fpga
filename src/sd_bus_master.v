@@ -147,16 +147,9 @@ module sd_bus_master #(
     localparam MMC_DATA_XFER_READ  = 2'b01;
     localparam MMC_DATA_XFER_WRITE = 2'b10;
 
-    localparam SD_BUS_STATE_INIT_SD_MODULE = 4'd0;
-    localparam SD_BUS_STATE_VERIFY = 4'd1;
-    localparam SD_BUS_STATE_INIT_CARD = 4'd2;
-    localparam SD_BUS_STATE_INIT_SD_MODULE_FAILED = 4'd14;
-    localparam SD_BUS_STATE_END = 4'd15;
-
-    reg [3:0] sd_bus_state = 0;
     reg [5:0] led_regs;
 
-    task sdc_bus_idle();
+    task sdc_bus_idle;
         begin
             sdc_wb_we_o <= 1'b0;
             sdc_wb_cyc_o <= 1'b0;
@@ -168,34 +161,57 @@ module sd_bus_master #(
         sd_cmd = {opcode, 1'b0, data_xfer_direction, response_type};
     endfunction
 
-    function automatic [39:0] sdc_op(
+    localparam SD_OP_IDLE = 2'd0;
+    localparam SD_OP_SET_REG = 2'd1;
+    localparam SD_OP_READ_REG = 2'd2;
+
+    function automatic [41:0] sd_op_set_reg(
         input [7:0] sdc_addr,
         input [31:0] reg_value
     );
-        sdc_op = {sdc_addr, reg_value};
+        sd_op_set_reg = {SD_OP_SET_REG, sdc_addr, reg_value};
     endfunction
 
-    localparam SD_INIT_OP_COUNT = 4'd11;
-    localparam SD_INIT_OP_COUNT_LOG2 = 4;
-    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index;
-    wire [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index = sd_init_ops_index + 1'b1;
+    function automatic [41:0] sd_op_read_reg(input [7:0] sdc_addr);
+        sd_op_read_reg = {SD_OP_READ_REG, sdc_addr, 32'd0};
+    endfunction
 
-    wire [40:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
-    assign sd_init_ops[0] = sdc_op(SDC_ADDR_DATA_TIMEOUT, SDC_CONFIG_TIMEOUT);
-    assign sd_init_ops[1] = sdc_op(SDC_ADDR_CONTROL, 1'b1);
-    assign sd_init_ops[2] = sdc_op(SDC_ADDR_CMD_TIMEOUT, SDC_CONFIG_TIMEOUT);
-    assign sd_init_ops[3] = sdc_op(SDC_ADDR_CLOCK_DIVIDER, LOWFREQ_CLK_DIVIDER);
-    assign sd_init_ops[4] = sdc_op(SDC_ADDR_CMD_EVENT_ENABLE, 0);
-    assign sd_init_ops[5] = sdc_op(SDC_ADDR_CMD_EVENT_STATUS, 0);
-    assign sd_init_ops[6] = sdc_op(SDC_ADDR_DATA_EVENT_ENABLE, 0);
-    assign sd_init_ops[7] = sdc_op(SDC_ADDR_DATA_EVENT_STATUS, 0);
-    assign sd_init_ops[8] = sdc_op(SDC_ADDR_BLOCK_SIZE, 511);
-    assign sd_init_ops[9] = sdc_op(SDC_ADDR_BLOCK_COUNT, 0);
-    assign sd_init_ops[10] = sdc_op(SDC_ADDR_DATA_XFER_ADDRESS, 0);
+    function automatic [41:0] sd_op_no_args(input [1:0] opcode);
+        sd_op_no_args = {opcode, 40'd0};
+    endfunction
+
+    localparam SD_INIT_OP_COUNT = 5'd23;
+    localparam SD_INIT_OP_COUNT_LOG2 = 5;
+    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index;
+    wire [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index = sd_init_ops_index + (sdc_wb_ack_i ? 1'b1 : 1'b0);
+
+    wire [41:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
+    assign sd_init_ops[0] = sd_op_set_reg(SDC_ADDR_DATA_TIMEOUT, SDC_CONFIG_TIMEOUT);
+    assign sd_init_ops[1] = sd_op_set_reg(SDC_ADDR_CONTROL, 1'b1);
+    assign sd_init_ops[2] = sd_op_set_reg(SDC_ADDR_CMD_TIMEOUT, SDC_CONFIG_TIMEOUT);
+    assign sd_init_ops[3] = sd_op_set_reg(SDC_ADDR_CLOCK_DIVIDER, LOWFREQ_CLK_DIVIDER);
+    assign sd_init_ops[4] = sd_op_set_reg(SDC_ADDR_CMD_EVENT_ENABLE, 0);
+    assign sd_init_ops[5] = sd_op_set_reg(SDC_ADDR_CMD_EVENT_STATUS, 0);
+    assign sd_init_ops[6] = sd_op_set_reg(SDC_ADDR_DATA_EVENT_ENABLE, 0);
+    assign sd_init_ops[7] = sd_op_set_reg(SDC_ADDR_DATA_EVENT_STATUS, 0);
+    assign sd_init_ops[8] = sd_op_set_reg(SDC_ADDR_BLOCK_SIZE, 511);
+    assign sd_init_ops[9] = sd_op_set_reg(SDC_ADDR_BLOCK_COUNT, 0);
+    assign sd_init_ops[10] = sd_op_set_reg(SDC_ADDR_DATA_XFER_ADDRESS, 0);
+    assign sd_init_ops[11] = sd_op_read_reg(SDC_ADDR_DATA_TIMEOUT);
+    assign sd_init_ops[12] = sd_op_read_reg(SDC_ADDR_CONTROL);
+    assign sd_init_ops[13] = sd_op_read_reg(SDC_ADDR_CMD_TIMEOUT);
+    assign sd_init_ops[14] = sd_op_read_reg(SDC_ADDR_CLOCK_DIVIDER);
+    assign sd_init_ops[15] = sd_op_read_reg(SDC_ADDR_CMD_EVENT_ENABLE);
+    assign sd_init_ops[16] = sd_op_read_reg(SDC_ADDR_CMD_EVENT_STATUS);
+    assign sd_init_ops[17] = sd_op_read_reg(SDC_ADDR_DATA_EVENT_ENABLE);
+    assign sd_init_ops[18] = sd_op_read_reg(SDC_ADDR_DATA_EVENT_STATUS);
+    assign sd_init_ops[19] = sd_op_read_reg(SDC_ADDR_BLOCK_SIZE);
+    assign sd_init_ops[20] = sd_op_read_reg(SDC_ADDR_BLOCK_COUNT);
+    assign sd_init_ops[21] = sd_op_read_reg(SDC_ADDR_DATA_XFER_ADDRESS);
+    assign sd_init_ops[22] = sd_op_no_args(SD_OP_IDLE);
 
     always @(posedge wb_clk) begin
         if (wb_rst) begin
-            sd_bus_state <= SD_BUS_STATE_INIT_SD_MODULE;
             sdc_wb_dat_o <= 0;
             sdc_wb_we_o <= 1'b0;
             sdc_wb_sel_o <= 4'b0000;
@@ -204,32 +220,33 @@ module sd_bus_master #(
             sdc_wb_adr_o <= 0;
             led_regs <= 6'd0;
             sd_init_ops_index <= 'd0;
-        end else if (sd_bus_state == SD_BUS_STATE_INIT_SD_MODULE) begin
-            sdc_wb_we_o <= 1'b1;
-            sdc_wb_sel_o <= 4'b1111;
-            sdc_wb_cyc_o <= 1'b1;
-            sdc_wb_stb_o <= 1'b1;
-            sdc_wb_adr_o <= sd_init_ops[sd_init_ops_next_index][39:32];
-            sdc_wb_dat_o <= sd_init_ops[sd_init_ops_next_index][31:0];
-
-            if (sd_init_ops_next_index < SD_INIT_OP_COUNT) begin
+        end else begin
+            if (sd_init_ops_index != SD_INIT_OP_COUNT) begin
                 sd_init_ops_index <= sd_init_ops_next_index;
-            end else begin
-                sdc_wb_adr_o <= sd_init_ops[0][39:32];
-                sdc_wb_dat_o <= 0;
-                sdc_wb_we_o <= 1'b0;
-                sd_bus_state <= SD_BUS_STATE_VERIFY;
             end
-        end else if (sd_bus_state == SD_BUS_STATE_VERIFY) begin
-            if (sdc_wb_ack_i) begin
-                if (sdc_wb_adr_o < SDC_ADDR_DATA_XFER_ADDRESS) begin
-                    sdc_wb_adr_o <= sdc_wb_adr_o != SDC_ADDR_BLOCK_COUNT ? sdc_wb_adr_o + 3'd4 : SDC_ADDR_DATA_XFER_ADDRESS;
-                end else begin
-                    sdc_bus_idle();
-                    sd_bus_state <= SD_BUS_STATE_END;
-                    // sdc_wb_adr_o <= sd_cmd(MMC_CMD_GO_IDLE_STATE, MMC_RSP_NONE, MMC_DATA_XFER_NONE);
+
+            case (sd_init_ops[sd_init_ops_next_index][41:40])
+                SD_OP_SET_REG : begin
+                    sdc_wb_we_o <= 1'b1;
+                    sdc_wb_sel_o <= 4'b1111;
+                    sdc_wb_cyc_o <= 1'b1;
+                    sdc_wb_stb_o <= 1'b1;
+                    sdc_wb_adr_o <= sd_init_ops[sd_init_ops_next_index][39:32];
+                    sdc_wb_dat_o <= sd_init_ops[sd_init_ops_next_index][31:0];
                 end
-            end
+
+                SD_OP_READ_REG : begin
+                    sdc_wb_we_o <= 1'b0;
+                    sdc_wb_cyc_o <= 1'b1;
+                    sdc_wb_stb_o <= 1'b1;
+                    sdc_wb_adr_o <= sd_init_ops[sd_init_ops_next_index][39:32];
+                    sdc_wb_dat_o <= 0;
+                end
+
+                SD_OP_IDLE : begin
+                    sdc_bus_idle();
+                end
+            endcase
         // end else if (sd_bus_state == SD_BUS_STATE_INIT_CARD) begin
         //             sdc_wb_we_o <= 1'b1;
         //             sdc_wb_adr_o <= SDC_ADDR_COMMAND;

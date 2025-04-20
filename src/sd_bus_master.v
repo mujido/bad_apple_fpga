@@ -175,9 +175,6 @@ module sd_bus_master #(
         sdc_op = {sdc_addr, reg_value};
     endfunction
 
-    localparam SDC_VERIFY_NO = 1'b0;
-    localparam SDC_VERIFY_YES = 1'b1;
-
     localparam SD_INIT_OP_COUNT = 4'd11;
     localparam SD_INIT_OP_COUNT_LOG2 = 4;
     reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index;

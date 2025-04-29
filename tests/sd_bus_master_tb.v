@@ -26,6 +26,6 @@ module sd_bus_master_tb;
         reset = 1;
         #2 reset = 0;
 
-        #111 $finish;
+        #120 $finish;
     end
 endmodule

@@ -11,7 +11,7 @@ VCD_FILES = $(TB_FILES:.v=.vcd)
 
 all: $(VCD_FILES)
 
-sd_bus_master_tb.vcd: ../src/sd_bus_master.v
+sd_bus_master_tb.vcd: ../src/sd_bus_master.v ../src/sd_fsm.v
 
 clean:
 	rm -f $(VVP_FILES) $(VCD_FILES)

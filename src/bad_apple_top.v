@@ -18,13 +18,24 @@ module bad_apple_top(
         .clkout(clk_100),
         .clkin(clock_27_pad));
 
+    reg [3:0] reset_sync = 4'hf;
+    wire reset_signal = reset_sync[3];
+
+    always @(posedge clk_100) begin
+        if (reset_pad) begin
+            reset_sync <= 4'hf;
+        end else begin
+            reset_sync <= {reset_sync[2:0], 1'b0};
+        end
+    end
+
     sd_bus_master #(
         .LOWFREQ_CLK_DIVIDER(SDIO_LOWFREQ_DIVIDER),
         .HIGHFREQ_CLK_DIVIDER(SDIO_HIGHFREQ_DIVIDER)
     ) sd_master (
         .clk(clk_100),
         .sdio_base_clk(clk_100),
-        .reset(reset_pad),
+        .reset(reset_signal),
         .leds(led_pads),
         .sdio_clk(sdio_clk_pad),
         .sdio_cmd(sdio_cmd_pad),

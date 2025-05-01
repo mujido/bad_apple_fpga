@@ -124,9 +124,6 @@ module sd_fsm #(
         sd_op_jump = {SD_OP_JUMP, {(41 - SD_OP_WIDTH - SD_INIT_OP_COUNT_LOG2 + 1){1'b0}}, index};
     endfunction
 
-    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index;
-    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index;
-
     wire [41:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
     assign sd_init_ops[0] = sd_op_set_reg(SDC_ADDR_DATA_TIMEOUT, SDC_CONFIG_TIMEOUT);
     assign sd_init_ops[1] = sd_op_set_reg(SDC_ADDR_CONTROL, 1'b1);
@@ -156,27 +153,23 @@ module sd_fsm #(
     assign sd_init_ops[25] = sd_op_set_reg(SDC_ADDR_ARGUMENT, 0);
     assign sd_init_ops[26] = sd_op_jump(26);
 
+    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index = 0;
+    reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index;
     wire [41:0] sd_current_init_op = sd_init_ops[sd_init_ops_index];
     wire [41:0] sd_next_init_op = sd_init_ops[sd_init_ops_next_index];
 
     reg sd_op_is_sd_cmd;
 
     always @(*) begin
-         if (wb_rst_i) begin
-            sd_op_is_sd_cmd = 1'b0;
-         end else begin
-            case (sd_current_init_op[41:40])
-                SD_OP_SET_REG,
-                SD_OP_READ_REG : sd_op_is_sd_cmd = 1'b1;
-                default : sd_op_is_sd_cmd = 1'b0;
-            endcase
-         end
+        case (sd_current_init_op[41:40])
+            SD_OP_SET_REG,
+            SD_OP_READ_REG : sd_op_is_sd_cmd = 1'b1;
+            default : sd_op_is_sd_cmd = 1'b0;
+        endcase
     end
 
     always @(*) begin
-        if (wb_rst_i) begin
-            sd_init_ops_next_index = 0;
-        end else if (sd_current_init_op[41:40] == SD_OP_JUMP) begin
+        if (sd_current_init_op[41:40] == SD_OP_JUMP) begin
             sd_init_ops_next_index = sd_current_init_op[SD_INIT_OP_COUNT_LOG2 - 1:0];
         end else if (~sd_op_is_sd_cmd | sdc_wb_ack_i) begin
             sd_init_ops_next_index = sd_init_ops_index + 1'b1;
@@ -200,24 +193,21 @@ module sd_fsm #(
     end
 
     always @(posedge wb_clk_i) begin
-        if (wb_rst_i) begin
-            sdc_wb_adr_o <= 0;
-            sdc_wb_dat_o <= 0;
-        end else begin
-            case (sd_next_init_op[41:40])
-                SD_OP_SET_REG,
-                SD_OP_READ_REG : begin
-                    sdc_wb_adr_o <= sd_next_init_op[39:32];
-                    sdc_wb_dat_o <= sd_next_init_op[31:0];
-                end
+        case (sd_next_init_op[41:40])
+            SD_OP_SET_REG,
+            SD_OP_READ_REG : begin
+                sdc_wb_adr_o <= sd_next_init_op[39:32];
+                sdc_wb_dat_o <= sd_next_init_op[31:0];
+            end
 
-                default : begin
-                    sdc_wb_adr_o <= 0;
-                    sdc_wb_dat_o <= 0;
-                end
-            endcase
-        end
+            default : begin
+                sdc_wb_adr_o <= 0;
+                sdc_wb_dat_o <= 0;
+            end
+        endcase
     end
 
-    always @(posedge wb_clk_i) sd_init_ops_index <= sd_init_ops_next_index;
+    always @(posedge wb_clk_i) begin
+        sd_init_ops_index <= wb_rst_i ? 0 : sd_init_ops_next_index;
+    end
 endmodule

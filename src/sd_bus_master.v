@@ -14,7 +14,7 @@ module sd_bus_master #(
 
     // Wishbone bus registers
     wire wb_clk = clk;
-    reg wb_rst;
+    reg wb_rst = 0;
 
     wire [31:0] sdc_wb_dat_o;
     wire [31:0] sdc_wb_dat_i;
@@ -67,18 +67,7 @@ module sd_bus_master #(
         // .int_data (int_data)
     );
 
-    reg [1:0] reset_counter = 0;
-
-    always @(posedge wb_clk or posedge reset) begin
-        if (reset) begin
-            reset_counter <= 2'd0;
-            wb_rst = 1'b1;
-        end else if (~&reset_counter) begin
-            reset_counter <= reset_counter + 1'b1;
-        end else begin
-            wb_rst = 1'b0;
-        end
-    end
+    always @(posedge wb_clk) wb_rst <= reset;
 
     sd_fsm #(
         .LOWFREQ_CLK_DIVIDER(LOWFREQ_CLK_DIVIDER),

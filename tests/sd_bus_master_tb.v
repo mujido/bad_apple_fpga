@@ -24,7 +24,7 @@ module sd_bus_master_tb;
         $dumpvars(0, sd_bus_master_tb);
 
         reset = 1;
-        #2 reset = 0;
+        #6 reset = 0;
 
         #120 $finish;
     end

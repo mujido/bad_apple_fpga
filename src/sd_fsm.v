@@ -92,39 +92,45 @@ module sd_fsm #(
 
     reg [5:0] led_regs;
 
-    localparam SD_OP_WIDTH = 2;
-    localparam SD_OP_IDLE = 2'd0;
-    localparam SD_OP_SET_REG = 2'd1;
-    localparam SD_OP_READ_REG = 2'd2;
-    localparam SD_OP_JUMP = 2'd3;
+    localparam SD_OP_WIDTH = 42;
+    localparam SD_OPCODE_WIDTH = 2;
+
+    localparam SD_OP_SET_REG = 2'd0;
+    localparam SD_OP_READ_REG = 2'd1;
+    localparam SD_OP_JUMP = 2'd2;
+    localparam SD_OP_WAIT_CMD_COMPLETE = 2'd3;
 
     localparam SD_INIT_OP_COUNT = 5'd27;
     localparam SD_INIT_OP_COUNT_LOG2 = 5;
 
-    function automatic [41:0] sd_op_set_reg(
+    function automatic [SD_OPCODE_WIDTH - 1:0] sd_get_opcode(input [SD_OP_WIDTH - 1:0] op);
+        sd_get_opcode = op[SD_OP_WIDTH - 1:SD_OP_WIDTH - SD_OPCODE_WIDTH];
+    endfunction
+
+    function automatic [SD_OP_WIDTH - 1:0] sd_op_set_reg(
         input [7:0] sdc_addr,
         input [31:0] reg_value
     );
         sd_op_set_reg = {SD_OP_SET_REG, sdc_addr, reg_value};
     endfunction
 
-    function automatic [41:0] sd_op_read_reg(input [7:0] sdc_addr);
+    function automatic [SD_OP_WIDTH - 1:0] sd_op_read_reg(input [7:0] sdc_addr);
         sd_op_read_reg = {SD_OP_READ_REG, sdc_addr, 32'd0};
     endfunction
 
-    function automatic [41:0] sd_op_no_args(input [1:0] opcode);
-        sd_op_no_args = {opcode, 40'd0};
+    function automatic [SD_OP_WIDTH - 1:0] sd_op_no_args(input [1:0] opcode);
+        sd_op_no_args = {opcode, {40{1'bx}}};
     endfunction
 
-    function automatic [41:0] sd_op_set_cmd(input [5:0] mmc_cmd, input [3:0] response_type, input [1:0] data_xfer_direction);
+    function automatic [SD_OP_WIDTH - 1:0] sd_op_set_cmd(input [5:0] mmc_cmd, input [3:0] response_type, input [1:0] data_xfer_direction);
         sd_op_set_cmd = sd_op_set_reg(SDC_ADDR_COMMAND, {mmc_cmd, 1'b0, data_xfer_direction, response_type});
     endfunction
 
-    function automatic [41:0] sd_op_jump(input [SD_INIT_OP_COUNT_LOG2 - 1:0] index);
-        sd_op_jump = {SD_OP_JUMP, {(41 - SD_OP_WIDTH - SD_INIT_OP_COUNT_LOG2 + 1){1'b0}}, index};
+    function automatic [SD_OP_WIDTH - 1:0] sd_op_jump(input [SD_INIT_OP_COUNT_LOG2 - 1:0] index);
+        sd_op_jump = {SD_OP_JUMP, {(SD_OP_WIDTH - SD_OPCODE_WIDTH - SD_INIT_OP_COUNT_LOG2){1'bx}}, index};
     endfunction
 
-    wire [41:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
+    wire [SD_OP_WIDTH - 1:0] sd_init_ops[SD_INIT_OP_COUNT - 1:0];
     assign sd_init_ops[0] = sd_op_set_reg(SDC_ADDR_DATA_TIMEOUT, SDC_CONFIG_TIMEOUT);
     assign sd_init_ops[1] = sd_op_set_reg(SDC_ADDR_CONTROL, 1'b1);
     assign sd_init_ops[2] = sd_op_set_reg(SDC_ADDR_CMD_TIMEOUT, SDC_CONFIG_TIMEOUT);
@@ -155,13 +161,13 @@ module sd_fsm #(
 
     reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_index = 0;
     reg [SD_INIT_OP_COUNT_LOG2 - 1:0] sd_init_ops_next_index;
-    wire [41:0] sd_current_init_op = sd_init_ops[sd_init_ops_index];
-    wire [41:0] sd_next_init_op = sd_init_ops[sd_init_ops_next_index];
+    wire [SD_OP_WIDTH - 1:0] sd_current_init_op = sd_init_ops[sd_init_ops_index];
+    wire [SD_OP_WIDTH - 1:0] sd_next_init_op = sd_init_ops[sd_init_ops_next_index];
 
     reg sd_op_is_sd_cmd;
 
     always @(*) begin
-        case (sd_current_init_op[41:40])
+        case (sd_get_opcode(sd_current_init_op))
             SD_OP_SET_REG,
             SD_OP_READ_REG : sd_op_is_sd_cmd = 1'b1;
             default : sd_op_is_sd_cmd = 1'b0;
@@ -169,7 +175,7 @@ module sd_fsm #(
     end
 
     always @(*) begin
-        if (sd_current_init_op[41:40] == SD_OP_JUMP) begin
+        if (sd_get_opcode(sd_current_init_op) == SD_OP_JUMP) begin
             sd_init_ops_next_index = sd_current_init_op[SD_INIT_OP_COUNT_LOG2 - 1:0];
         end else if (~sd_op_is_sd_cmd | sdc_wb_ack_i) begin
             sd_init_ops_next_index = sd_init_ops_index + 1'b1;
@@ -188,12 +194,12 @@ module sd_fsm #(
         end else begin
             sdc_wb_cyc_o = sd_op_is_sd_cmd;
             sdc_wb_stb_o = sd_op_is_sd_cmd;
-            sdc_wb_we_o = sd_current_init_op[41:40] == SD_OP_SET_REG;
+            sdc_wb_we_o = sd_get_opcode(sd_current_init_op) == SD_OP_SET_REG;
         end
     end
 
     always @(posedge wb_clk_i) begin
-        case (sd_next_init_op[41:40])
+        case (sd_get_opcode(sd_next_init_op))
             SD_OP_SET_REG,
             SD_OP_READ_REG : begin
                 sdc_wb_adr_o <= sd_next_init_op[39:32];
@@ -201,8 +207,8 @@ module sd_fsm #(
             end
 
             default : begin
-                sdc_wb_adr_o <= 0;
-                sdc_wb_dat_o <= 0;
+                sdc_wb_adr_o <= 'x;
+                sdc_wb_dat_o <= 'x;
             end
         endcase
     end

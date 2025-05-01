@@ -17,7 +17,7 @@ clean:
 SD_CONTROLLER_SRC = ../thirdparty/SD-card-controller/rtl/verilog
 
 %.vvp: %.v
-	iverilog -y ../src -y $(SD_CONTROLLER_SRC) -I $(SD_CONTROLLER_SRC) -o $@ $<
+	iverilog -g2005-sv -y ../src -y $(SD_CONTROLLER_SRC) -I $(SD_CONTROLLER_SRC) -o $@ $<
 
 %.vcd: %.vvp
 	vvp $< -fst

@@ -1,6 +1,5 @@
 module bad_apple_top(
     input wire clock_27_pad,
-    input wire clock_27_alt_pad,
     input wire reset_pad,
 
     inout [3:0] sdio_data_pads,

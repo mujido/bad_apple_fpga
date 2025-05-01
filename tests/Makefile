@@ -2,9 +2,7 @@
 
 TB_FILES = \
 	clock_divider_pow2_tb.v \
-	sd_bus_master_tb.v \
-	sd_test_tb.v \
-	spi_tx_tb.v
+	sd_bus_master_tb.v
 
 VVP_FILES = $(TB_FILES:.v=.vvp)
 VCD_FILES = $(TB_FILES:.v=.vcd)

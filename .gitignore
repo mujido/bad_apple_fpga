@@ -1,7 +1,14 @@
+bad_apple.gprj.user
+
 impl/gwsynthesis
 impl/pnr
 impl/temp
 
+# CocoTB related files
+__pycache__
+sim_build
+results.xml
+
+# Icarus Verilog test files
 *.vcd
 *.vvp
-bad_apple.gprj.user

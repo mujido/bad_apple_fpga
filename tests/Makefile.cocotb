@@ -1,0 +1,15 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES = ../src/qspi.v
+
+TOPLEVEL = qspi
+
+MODULE = test_qspi
+
+WAVES=1
+
+COCOTB_HDL_TIMEUNIT ?= 1ns
+COCOTB_HDL_TIMEPRECISION ?= 1ps
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

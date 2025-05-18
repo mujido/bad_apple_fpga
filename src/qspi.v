@@ -13,6 +13,7 @@ module qspi #(
     input wire start,
     input wire qio_mode,
     input wire dummy,
+    input wire delay_cycle,
 
     input wire [MAX_TX_LENGTH - 1:0] tx_data,
     input wire [MAX_TX_LENGTH_LOG2 - 1:0] tx_size,
@@ -73,12 +74,21 @@ module qspi #(
 
             tx_data_reg <= tx_data;
             tx_size_reg <= tx_size;
-            rx_size_reg <= rx_size;
+
+            if (tx_size != 1'd0 || rx_size == 1'd0 || !delay_cycle) begin
+                rx_size_reg <= rx_size;
+            end else begin
+                // Need to delay by one cycle before read. Can accomplish the same thing by just reading an extra time
+                // at the end.
+                rx_size_reg <= rx_size + 1'd1;
+            end
         end
 
         if (spi_clk && (busy || start)) begin
-            tx_data_reg <= {tx_data_reg[MAX_TX_LENGTH - 2:0], 1'b0};
-            tx_size_reg <= tx_size_reg - 1'b1;
+            if (!tx_complete) begin
+                tx_data_reg <= {tx_data_reg[MAX_TX_LENGTH - 2:0], 1'b0};
+                tx_size_reg <= tx_size_reg - 1'b1;
+            end
 
             if (!rx_complete) begin
                 if (qio_mode_reg) begin
@@ -87,7 +97,7 @@ module qspi #(
                     rx_data <= {rx_data[MAX_RX_LENGTH - 4:1], data_in};
                     rx_size_reg <= rx_size_reg - 3'd4;
                 end else begin
-                    rx_data <= {rx_data[MAX_RX_LENGTH - 1:1], data_in[0]};
+                    rx_data <= {rx_data[MAX_RX_LENGTH - 2:0], data_in[0]};
                     rx_size_reg <= rx_size_reg - 1'd1;
                 end
             end

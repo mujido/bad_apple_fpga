@@ -1,7 +1,7 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
-VERILOG_SOURCES = ../src/qspi.v
+VERILOG_SOURCES = ../src/qspi.v ../src/edge_detector.v
 
 TOPLEVEL = qspi
 

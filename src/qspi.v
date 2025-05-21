@@ -61,11 +61,29 @@ module qspi #(
     reg [MAX_TX_LENGTH - 1:0] tx_data_reg = 0;
     reg [MAX_TX_LENGTH_LOG2 - 1:0] tx_size_reg = 0;
     reg [MAX_RX_LENGTH_LOG2 - 1:0] rx_size_reg = 0;
+    reg tx_active = 1'b0;
+    reg rx_active = 1'b0;
 
     reg qio_mode_reg;
     reg dummy_reg;
 
-    wire busy = !(tx_complete & rx_complete);
+    wire tx_size_0 = tx_size_reg == 1'd0;
+    wire rx_size_0 = rx_size_reg == 1'd0;
+
+    wire busy = !(tx_size_0 && rx_size_0);
+    wire spi_active_cycle = spi_clk && (busy || start);
+
+    edge_detector #(.EDGE(1'b0), .IGNORE_FIRST(1)) tx_complete_detector (
+        .clk(clk),
+        .signal(tx_active),
+        .edge_pulse(tx_complete)
+    );
+
+    edge_detector #(.EDGE(1'b0), .IGNORE_FIRST(1)) rx_complete_detector(
+        .clk(clk),
+        .signal(rx_active),
+        .edge_pulse(rx_complete)
+    );
 
     always @(posedge clk) begin
         if (!busy && start) begin
@@ -75,35 +93,41 @@ module qspi #(
             tx_data_reg <= tx_data;
             tx_size_reg <= tx_size;
 
-            if (tx_size != 1'd0 || rx_size == 1'd0 || !delay_cycle) begin
-                rx_size_reg <= rx_size;
-            end else begin
-                // Need to delay by one cycle before read. Can accomplish the same thing by just reading an extra time
-                // at the end.
-                rx_size_reg <= rx_size + 1'd1;
-            end
+            // Need to delay by one cycle before read if delay_cycle is true. Can accomplish the same thing by just
+            // reading an extra time.
+            rx_size_reg <= rx_size + (
+                tx_size != 1'd0 || rx_size == 1'd0 || !delay_cycle ? 1'b0 : 1'b1
+            );
+
+            tx_active <= tx_size != 1'd0;
+            rx_active <= rx_size != 1'd0;
+        end else if (spi_active_cycle) begin
+            if (!tx_size_0) tx_size_reg <= tx_size_reg - 1'b1;
+            if (!rx_size_0) rx_size_reg <= rx_size_reg - (qio_mode_reg ? 3'd4 : 3'd1);
         end
 
-        if (spi_clk && (busy || start)) begin
-            if (!tx_complete) begin
-                tx_data_reg <= {tx_data_reg[MAX_TX_LENGTH - 2:0], 1'b0};
-                tx_size_reg <= tx_size_reg - 1'b1;
-            end
+        if (!busy && !start) begin
+            tx_active <= !tx_size_0;
+            rx_active <= !rx_size_0;
+        end
+    end
 
-            if (!rx_complete) begin
+    always @(posedge clk) begin
+        if (spi_active_cycle) begin
+            if (!tx_size_0) tx_data_reg <= {tx_data_reg[MAX_TX_LENGTH - 2:0], 1'b0};
+
+            if (!rx_size_0) begin
                 if (qio_mode_reg) begin
                     // Assumes that rx_data is a multiple of 4. This is not enforced and must be taken care of by user
                     // of module.
                     rx_data <= {rx_data[MAX_RX_LENGTH - 4:1], data_in};
-                    rx_size_reg <= rx_size_reg - 3'd4;
                 end else begin
                     rx_data <= {rx_data[MAX_RX_LENGTH - 2:0], data_in[0]};
-                    rx_size_reg <= rx_size_reg - 1'd1;
                 end
             end
 
             if (tx_size_reg == 1'd1) begin
-                // If we receiving more data, switch to dummy mode.
+                // If at end of transmission and still reading more, activate dummy mode.
                 dummy_reg <= 1'b1;
             end
         end
@@ -111,7 +135,5 @@ module qspi #(
 
     assign spi_clk_pad = spi_clk;
     assign data_out = !reset && !dummy_reg && tx_data_reg[MAX_TX_LENGTH - 1];
-    assign tx_complete = tx_size_reg == 1'd0;
-    assign rx_complete = rx_size_reg == 1'd0;
 
 endmodule

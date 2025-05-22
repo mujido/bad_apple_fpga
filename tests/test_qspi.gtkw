@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Thu May 22 23:52:20 2025
+[*]
+[dumpfile] "/home/kurt/Documents/FPGA/GOWIN/bad_apple/tests/sim_build/qspi.fst"
+[dumpfile_mtime] "Thu May 22 23:50:20 2025"
+[dumpfile_size] 5755
+[savefile] "/home/kurt/Documents/FPGA/GOWIN/bad_apple/tests/test_qspi.gtkw"
+[timestart] 0
+[size] 2560 1440
+[pos] -1 -1
+*-10.775505 20410 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] qspi.
+[sst_width] 304
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 448
+@28
+qspi.clk
+qspi.spi_clk_pad
+qspi.start
+@22
+qspi.tx_data[7:0]
+qspi.tx_data_reg[7:0]
+qspi.tx_size[3:0]
+qspi.tx_size_reg[3:0]
+qspi.rx_size[3:0]
+qspi.rx_size_reg[3:0]
+@28
+qspi.data_out
+@22
+qspi.data_in[3:0]
+qspi.rx_data[7:0]
+@28
+qspi.busy
+qspi.tx_complete
+qspi.rx_complete
+[pattern_trace] 1
+[pattern_trace] 0

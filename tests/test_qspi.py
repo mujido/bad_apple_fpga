@@ -167,6 +167,8 @@ async def test_receive_byte(dut):
     # the next rising clock
     received = await master_receive_bytes(dut, 8, 1, delay_cycle=True)
     await send_task
+
+    await FallingEdge(dut.rx_complete)
     await Timer(1, "ns")
 
     dut._log.debug(f"received={received}")

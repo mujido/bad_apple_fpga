@@ -1,12 +1,12 @@
 module qspi #(
     parameter MAX_TX_LENGTH = 8,
-    parameter MAX_TX_LENGTH_LOG2 = 4,
+    parameter MAX_TX_LENGTH_LOG2 = $clog2(MAX_TX_LENGTH + 1),
 
     parameter MAX_RX_LENGTH = 8,
-    parameter MAX_RX_LENGTH_LOG2 = 4,
+    parameter MAX_RX_LENGTH_LOG2 = $clog2(MAX_RX_LENGTH + 2),
 
     parameter CLOCK_DIVIDER = 2,
-    parameter CLOCK_DIVIDER_LOG2 = 1
+    parameter CLOCK_DIVIDER_LOG2 = $clog2(CLOCK_DIVIDER)
 ) (
     input wire clk,
     input wire reset,

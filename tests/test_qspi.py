@@ -89,8 +89,7 @@ async def master_send_bytes(dut, values: list[int], word_size: int) -> None:
         # assert dut.tx_complete.value == 0
 
 
-@cocotb.test(timeout_time=25, timeout_unit="ns")
-async def test_transmit_byte(dut):
+def init_qspi(dut) -> None:
     dut.reset.value = 0
     dut.start.value = 0
     dut.qio_mode.value = 0
@@ -99,6 +98,11 @@ async def test_transmit_byte(dut):
     dut.tx_data.value = 0
     dut.tx_size.value = 0
     dut.rx_size.value = 0
+
+
+@cocotb.test(timeout_time=22, timeout_unit="ns")
+async def test_transmit_byte(dut):
+    init_qspi(dut)
 
     data = [0x3B]
 
@@ -117,16 +121,9 @@ async def test_transmit_byte(dut):
     assert received == data
 
 
-@cocotb.test(timeout_time=5000, timeout_unit="ns")
+@cocotb.test(timeout_time=4100, timeout_unit="ns")
 async def test_transmit_array(dut):
-    dut.reset.value = 0
-    dut.start.value = 0
-    dut.qio_mode.value = 0
-    dut.dummy.value = 0
-    dut.delay_cycle.value = 0
-    dut.tx_data.value = 0
-    dut.tx_size.value = 0
-    dut.rx_size.value = 0
+    init_qspi(dut)
 
     data = list(range(0, 256))
 
@@ -145,16 +142,9 @@ async def test_transmit_array(dut):
     assert received == data
 
 
-@cocotb.test(timeout_time=100, timeout_unit="ns")
+@cocotb.test(timeout_time=22, timeout_unit="ns")
 async def test_receive_byte(dut):
-    dut.reset.value = 0
-    dut.start.value = 0
-    dut.qio_mode.value = 0
-    dut.dummy.value = 0
-    dut.delay_cycle.value = 0
-    dut.tx_data.value = 0
-    dut.tx_size.value = 0
-    dut.rx_size.value = 0
+    init_qspi(dut)
 
     data = [0xC5]
 
@@ -175,16 +165,9 @@ async def test_receive_byte(dut):
     assert received == data
 
 
-@cocotb.test(timeout_time=5000, timeout_unit="ns")
+@cocotb.test(timeout_time=4100, timeout_unit="ns")
 async def test_receive_array(dut):
-    dut.reset.value = 0
-    dut.start.value = 0
-    dut.qio_mode.value = 0
-    dut.dummy.value = 0
-    dut.delay_cycle.value = 0
-    dut.tx_data.value = 0
-    dut.tx_size.value = 0
-    dut.rx_size.value = 0
+    init_qspi(dut)
 
     data = list(range(0, 256))
 
@@ -201,3 +184,35 @@ async def test_receive_array(dut):
 
     dut._log.debug(f"received={received}")
     assert received == data
+
+
+@cocotb.test(timeout_time=34, timeout_unit="ns")
+async def test_cmd_receive_byte(dut):
+    init_qspi(dut)
+
+    cmd = [0xDC]
+    data = [0x3B]
+
+    await Timer(1, "ns")
+
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    read_cmd_task = cocotb.start_soon(slave_receive_bytes(dut, len(cmd), 8))
+
+    async def response_func():
+        await RisingEdge(dut.tx_complete)
+        return await cocotb.start_soon(slave_send_bytes(dut, data, 8))
+
+    send_data_task = cocotb.start_soon(response_func())
+
+    await master_send_bytes(dut, cmd, 8)
+    received_cmd = await read_cmd_task
+    dut._log.debug(f"received_cmd={received_cmd[0]:#02x}")
+
+    received_data = await master_receive_bytes(dut, 8, len(data))
+    await send_data_task
+
+    await Timer(1, "ns")
+
+    dut._log.debug(f"received_data={received_data[0]:#02x}")
+    assert received_cmd == cmd
+    assert received_data == data

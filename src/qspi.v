@@ -94,7 +94,7 @@ module qspi #(
                 if (qio_mode_reg) begin
                     // Assumes that rx_data is a multiple of 4. This is not enforced and must be taken care of by user
                     // of module.
-                    rx_data <= {rx_data[MAX_RX_LENGTH - 4:1], data_in};
+                    rx_data <= {rx_data[MAX_RX_LENGTH - 5:0], data_in};
                 end else begin
                     rx_data <= {rx_data[MAX_RX_LENGTH - 2:0], data_in[0]};
                 end
@@ -108,7 +108,7 @@ module qspi #(
             end
 
             tx_complete <= tx_size_reg == 1'd1;
-            rx_complete <= rx_size_reg == 1'd1;
+            rx_complete <= rx_size_reg == (qio_mode_reg ? 3'd4 : 3'd1);
         end else if (!busy) begin
             tx_complete <= 1'b0;
             rx_complete <= 1'b0;

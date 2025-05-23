@@ -19,22 +19,21 @@ async def slave_receive_bytes(dut, count: int, word_size: int) -> list[int]:
     return values
 
 
-async def slave_send_bytes(
-    dut, values: list[int], word_size: int, qio_mode: bool = False
-) -> None:
-    iter_size = 4 if qio_mode else 1
-
-    if not qio_mode:
-        dut.data_in.value = LogicArray("ZZZ0")
+async def slave_send_bytes(dut, values: list[int], word_size: int) -> None:
+    dut.data_in.value = LogicArray("ZZZ0")
 
     for value in values:
-        for i in range(0, word_size // iter_size):
+        for i in range(0, word_size):
             await FallingEdge(dut.spi_clk_pad)
+            dut.data_in[0].value = (value >> (word_size - i - 1)) & 1
 
-            if qio_mode:
-                dut.data_in.value = (value >> 4 * i) & 0xF
-            else:
-                dut.data_in[0].value = (value >> (word_size - i - 1)) & 1
+
+async def slave_send_bytes_qio(dut, values: list[int], word_size: int) -> None:
+    for value in values:
+        for _ in range(0, word_size // 4):
+            await FallingEdge(dut.spi_clk_pad)
+            dut.data_in.value = (value >> (word_size - 4)) & 0xF
+            value <<= 4
 
 
 async def master_receive_bytes(
@@ -55,6 +54,7 @@ async def master_receive_bytes(
         dut.start.value = 0
         dut.rx_size.value = 0
         dut.delay_cycle.value = 0
+        dut.qio_mode = False
 
         await RisingEdge(dut.rx_complete)
         value = dut.rx_data.value
@@ -209,6 +209,102 @@ async def test_cmd_receive_byte(dut):
     dut._log.debug(f"received_cmd={received_cmd[0]:#02x}")
 
     received_data = await master_receive_bytes(dut, 8, len(data))
+    await send_data_task
+
+    await Timer(1, "ns")
+
+    dut._log.debug(f"received_data={received_data[0]:#02x}")
+    assert received_cmd == cmd
+    assert received_data == data
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ns")
+async def test_cmd_receive_array(dut):
+    init_qspi(dut)
+
+    cmd = [0x13]
+    data = list(range(256))
+
+    await Timer(1, "ns")
+
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    read_cmd_task = cocotb.start_soon(slave_receive_bytes(dut, len(cmd), 8))
+
+    async def response_func():
+        await RisingEdge(dut.tx_complete)
+        return await cocotb.start_soon(slave_send_bytes(dut, data, 8))
+
+    send_data_task = cocotb.start_soon(response_func())
+
+    await master_send_bytes(dut, cmd, 8)
+    received_cmd = await read_cmd_task
+    dut._log.debug(f"received_cmd={received_cmd[0]:#02x}")
+
+    received_data = await master_receive_bytes(dut, 8, len(data))
+    await send_data_task
+
+    await Timer(1, "ns")
+
+    dut._log.debug(f"received_data={received_data[0]:#02x}")
+    assert received_cmd == cmd
+    assert received_data == data
+
+
+@cocotb.test(timeout_time=34, timeout_unit="ns")
+async def test_cmd_receive_byte_qio(dut):
+    init_qspi(dut)
+
+    cmd = [0xDC]
+    data = [0x3B]
+
+    await Timer(1, "ns")
+
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    read_cmd_task = cocotb.start_soon(slave_receive_bytes(dut, len(cmd), 8))
+
+    async def response_func():
+        await RisingEdge(dut.tx_complete)
+        return await cocotb.start_soon(slave_send_bytes_qio(dut, data, 8))
+
+    send_data_task = cocotb.start_soon(response_func())
+
+    await master_send_bytes(dut, cmd, 8)
+    received_cmd = await read_cmd_task
+    dut._log.debug(f"received_cmd={received_cmd[0]:#02x}")
+
+    received_data = await master_receive_bytes(dut, 8, len(data), qio_mode=True)
+    await send_data_task
+
+    await Timer(1, "ns")
+
+    dut._log.debug(f"received_data={received_data[0]:#02x}")
+    assert received_cmd == cmd
+    assert received_data == data
+
+
+@cocotb.test(timeout_time=1042, timeout_unit="ns")
+async def test_cmd_receive_array_qio(dut):
+    init_qspi(dut)
+
+    cmd = [0xDC]
+    data = list(range(256))
+
+    await Timer(1, "ns")
+
+    cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    read_cmd_task = cocotb.start_soon(slave_receive_bytes(dut, len(cmd), 8))
+
+    async def response_func():
+        await RisingEdge(dut.tx_complete)
+        return await cocotb.start_soon(slave_send_bytes_qio(dut, data, 8))
+
+    send_data_task = cocotb.start_soon(response_func())
+
+    await master_send_bytes(dut, cmd, 8)
+    received_cmd = await read_cmd_task
+    dut._log.debug(f"received_cmd={received_cmd[0]:#02x}")
+
+    received_data = await master_receive_bytes(dut, 8, len(data), qio_mode=True)
     await send_data_task
 
     await Timer(1, "ns")
